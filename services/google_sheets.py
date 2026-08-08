@@ -1,6 +1,3 @@
-# COMPLETE REPLACEMENT FILE
-# services/google_sheets.py
-
 import time
 import pandas as pd
 import gspread
@@ -22,16 +19,21 @@ class GoogleSheets:
             scopes=SCOPES
         )
 
-        client = gspread.authorize(credentials)
+        self.client = gspread.authorize(credentials)
 
         spreadsheet_id = "15lbT4DgpkgRyC17y9mkwMLarafWYlij6NTM5YI0Es8s"
 
-        # Retry 3 times
-        for attempt in range(3):
+        # ------------------------------------------
+        # Open Spreadsheet
+        # ------------------------------------------
+
+        self.spreadsheet = None
+
+        for attempt in range(5):
 
             try:
 
-                self.spreadsheet = client.open_by_key(
+                self.spreadsheet = self.client.open_by_key(
                     spreadsheet_id
                 )
 
@@ -39,26 +41,48 @@ class GoogleSheets:
 
             except Exception:
 
-                if attempt == 2:
+                if attempt == 4:
                     raise
 
                 time.sleep(2)
 
-        self.names_sheet = self.spreadsheet.worksheet("Names")
-        self.institutions_sheet = self.spreadsheet.worksheet("Institutions")
-        self.responses_sheet = self.spreadsheet.worksheet("Responses")
-        self.payments_sheet = self.spreadsheet.worksheet("Payments")
+        # ------------------------------------------
+        # Worksheets
+        # ------------------------------------------
+
+        self.names_sheet = self._get_worksheet("Names")
+
+        self.institutions_sheet = self._get_worksheet(
+            "Institutions"
+        )
+
+        self.responses_sheet = self._get_worksheet(
+            "Responses"
+        )
+
+        self.payments_sheet = self._get_worksheet(
+            "Payments"
+        )
+
+        # ------------------------------------------
+        # Names Data
+        # ------------------------------------------
 
         self.names_df = pd.DataFrame(
             self.names_sheet.get_all_records()
         )
+
+        # ------------------------------------------
+        # Institutions Data
+        # ------------------------------------------
 
         self.institutions_df = pd.DataFrame(
             self.institutions_sheet.get_all_records()
         )
 
         self.institutions_df.columns = (
-            self.institutions_df.columns.str.strip()
+            self.institutions_df.columns
+            .str.strip()
         )
 
         self.institutions_df["District"] = (
@@ -79,7 +103,30 @@ class GoogleSheets:
             .str.strip()
         )
 
-    # ------------------------------------------------
+    # ==================================================
+    # WORKSHEET
+    # ==================================================
+
+    def _get_worksheet(self, worksheet_name):
+
+        for attempt in range(5):
+
+            try:
+
+                return self.spreadsheet.worksheet(
+                    worksheet_name
+                )
+
+            except Exception:
+
+                if attempt == 4:
+                    raise
+
+                time.sleep(2)
+
+    # ==================================================
+    # NAMES
+    # ==================================================
 
     def get_names(self):
 
@@ -90,7 +137,9 @@ class GoogleSheets:
             .tolist()
         )
 
-    # ------------------------------------------------
+    # ==================================================
+    # DISTRICTS
+    # ==================================================
 
     def get_districts(self):
 
@@ -101,9 +150,14 @@ class GoogleSheets:
             .tolist()
         )
 
-    # ------------------------------------------------
+    # ==================================================
+    # INSTITUTIONS
+    # ==================================================
 
-    def get_institutions_by_district(self, district):
+    def get_institutions_by_district(
+        self,
+        district
+    ):
 
         df = self.institutions_df[
             self.institutions_df["District"] == district
@@ -116,28 +170,78 @@ class GoogleSheets:
             .tolist()
         )
 
-    # ------------------------------------------------
+    # ==================================================
+    # ADDRESS
+    # ==================================================
 
-    def get_address(self, district, institution):
+    def get_address(
+        self,
+        district,
+        institution
+    ):
 
         row = self.institutions_df[
-            (self.institutions_df["District"] == district) &
-            (self.institutions_df["Institution Name"] == institution)
+            (self.institutions_df["District"] == district)
+            &
+            (
+                self.institutions_df["Institution Name"]
+                == institution
+            )
         ]
 
         if row.empty:
+
             return ""
 
         return row.iloc[0]["Address"]
 
-    # ------------------------------------------------
+    # ==================================================
+    # SAVE MULTIPLE RESPONSES
+    # ==================================================
 
-    def save_response(self, row):
+    def save_responses(self, rows):
 
-        self.responses_sheet.append_row(row)
+        if not rows:
+            return
 
-    # ------------------------------------------------
+        for attempt in range(3):
+
+            try:
+
+                self.responses_sheet.append_rows(
+                    rows,
+                    value_input_option="USER_ENTERED"
+                )
+
+                return
+
+            except Exception:
+
+                if attempt == 2:
+                    raise
+
+                time.sleep(2)
+
+    # ==================================================
+    # SAVE PAYMENT
+    # ==================================================
 
     def save_payment(self, row):
 
-        self.payments_sheet.append_row(row)
+        for attempt in range(3):
+
+            try:
+
+                self.payments_sheet.append_row(
+                    row,
+                    value_input_option="USER_ENTERED"
+                )
+
+                return
+
+            except Exception:
+
+                if attempt == 2:
+                    raise
+
+                time.sleep(2)
