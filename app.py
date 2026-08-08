@@ -1,11 +1,11 @@
 import streamlit as st
 import re
-from datetime import date
-from services.google_sheets import GoogleSheets
 
-# -------------------------------------------------------
+from services.cache import get_google_sheets
+
+# =====================================================
 # PAGE CONFIG
-# -------------------------------------------------------
+# =====================================================
 
 st.set_page_config(
     page_title="TMREIS Institution Visit Payment Portal",
@@ -13,365 +13,366 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# =====================================================
+# CSS
+# =====================================================
+
 st.markdown("""
 <style>
 
-.stApp{
-    background:#FFFFFF;
+/* Hide Streamlit */
+
+#MainMenu{
+    visibility:hidden;
 }
 
-section[data-testid="stSidebar"]{
+header{
+    visibility:hidden;
+}
+
+footer{
+    visibility:hidden;
+}
+
+[data-testid="stSidebar"]{
     display:none;
 }
 
+[data-testid="collapsedControl"]{
+    display:none;
+}
+
+/* Page */
+
 .block-container{
-    padding-top:2rem;
+
     max-width:900px;
+
+    padding-top:2rem;
+
+    padding-bottom:2rem;
+
 }
 
-h1,h2,h3{
-    color:#222222;
+/* Inputs */
+
+.stTextInput input{
+
+    height:46px;
+
 }
 
-hr{
+.stSelectbox{
+
+    margin-bottom:10px;
+
+}
+
+/* Buttons */
+
+.stButton>button{
+
+    width:100%;
+
+    height:48px;
+
+    background:#0d6efd;
+
+    color:white;
+
+    border:none;
+
+    border-radius:8px;
+
+    font-size:16px;
+
+    font-weight:600;
+
+}
+
+.stButton>button:hover{
+
+    background:#0b5ed7;
+
+    color:white;
+
+}
+
+/* Progress */
+
+.stProgress{
+
     margin-top:10px;
+
     margin-bottom:25px;
+
 }
 
 </style>
 """, unsafe_allow_html=True)
 
-# -------------------------------------------------------
-# LOAD GOOGLE SHEETS
-# -------------------------------------------------------
+# =====================================================
+# GOOGLE SHEETS
+# =====================================================
 
-gs = GoogleSheets()
+gs = get_google_sheets()
 
-volunteers = [""] + gs.get_names()
+# =====================================================
+# SESSION STATE
+# =====================================================
 
-districts = [""] + gs.get_districts()
+if "page" not in st.session_state:
 
-# -------------------------------------------------------
+    st.session_state.page = 1
+
+if "volunteer" not in st.session_state:
+
+    st.session_state.volunteer = {
+
+        "name":"",
+
+        "mobile":"",
+
+        "email":"",
+
+        "institution_count":1
+
+    }
+
+if "institutions" not in st.session_state:
+
+    st.session_state.institutions = []
+
+if "payment" not in st.session_state:
+
+    st.session_state.payment = {}
+
+# =====================================================
+# VALIDATIONS
+# =====================================================
+
+def valid_mobile(number):
+
+    return bool(
+        re.fullmatch(
+            r"[6-9]\d{9}",
+            number
+        )
+    )
+
+
+def valid_email(email):
+
+    return bool(
+        re.fullmatch(
+            r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$",
+            email
+        )
+    )
+
+# =====================================================
 # HEADER
-# -------------------------------------------------------
+# =====================================================
 
-st.title("TMREIS Institution Visit Payment Portal")
-st.caption("Volunteer Payment Information Collection")
+def render_header():
 
-st.divider()
+    st.title(
+        "TMREIS Institution Visit Payment Portal"
+    )
 
-# -------------------------------------------------------
-# FORM
-# -------------------------------------------------------
+    st.markdown("""
+**Volunteer Details** &nbsp;&nbsp;>&nbsp;&nbsp;
+Institution Details &nbsp;&nbsp;>&nbsp;&nbsp;
+Payment Details &nbsp;&nbsp;>&nbsp;&nbsp;
+Review & Submit
+""")
 
-with st.form("payment_form"):
+    st.divider()
+
+# =====================================================
+# VOLUNTEER DETAILS PAGE
+# =====================================================
+
+def volunteer_page():
+
+    render_header()
 
     st.subheader("Volunteer Details")
 
-    volunteer = st.selectbox(
-        "Volunteer Name *",
-        volunteers,
-        format_func=lambda x: "Choose Volunteer Name" if x == "" else x
-    )
-
-    mobile = st.text_input(
-        "Mobile Number *",
-        max_chars=10,
-        placeholder="10-digit Mobile Number"
-    )
-
-    email = st.text_input(
-        "Email Address *",
-        placeholder="example@gmail.com"
-    )
-
-    institution_count = st.selectbox(
-        "Total Institutions Visited *",
-        list(range(1, 21))
-    )
+    st.write("Please enter your details below.")
 
     st.divider()
 
-    st.subheader("Institution Details")
+    volunteer = st.session_state.volunteer
 
-    institution_data = []
+    names = gs.get_names()
 
-    for i in range(institution_count):
+    col1, col2 = st.columns(2)
 
-        st.markdown(f"### Institution {i+1}")
+    with col1:
 
-        district = st.selectbox(
-            "District *",
-            districts,
-            key=f"district_{i}",
-            format_func=lambda x: "Choose District" if x == "" else x
+        volunteer_name = st.selectbox(
+
+            "Volunteer Name *",
+
+            names,
+
+            index=(
+                names.index(volunteer["name"])
+                if volunteer["name"] in names
+                else None
+            ),
+
+            placeholder=""
+
         )
 
-        institutions = []
+    with col2:
 
-        if district != "":
-            institutions = [""] + gs.get_institutions(district)
+        institution_count = st.selectbox(
 
-        institution = st.selectbox(
-            "Institution *",
-            institutions,
-            key=f"institution_{i}",
-            format_func=lambda x: "Choose Institution" if x == "" else x
+            "Total Institutions Visited *",
+
+            list(range(1, 21)),
+
+            index=volunteer["institution_count"] - 1
+
         )
 
-        address = ""
+    col3, col4 = st.columns(2)
 
-        if institution != "":
-            address = gs.get_address(institution)
+    with col3:
 
-        st.text_area(
-            "Address",
-            value=address,
-            disabled=True,
-            height=80,
-            key=f"address_{i}"
+        mobile = st.text_input(
+
+            "Mobile Number *",
+
+            value=volunteer["mobile"],
+
+            max_chars=10
+
         )
 
-        visit_date = st.date_input(
-            "Visit Date",
-            value=date.today(),
-            key=f"visit_{i}"
-        )
+    with col4:
 
-        visited_alone = st.checkbox(
-            "I Visited Alone",
-            key=f"alone_{i}"
-        )
+        email = st.text_input(
 
-        if visited_alone:
+            "Email Address *",
 
-            partner = ""
+            value=volunteer["email"]
 
-            st.selectbox(
-                "Partner Name",
-                [""],
-                disabled=True,
-                key=f"partner_disabled_{i}"
-            )
-
-        else:
-
-            partner = st.selectbox(
-                "Partner Name",
-                volunteers,
-                key=f"partner_{i}",
-                format_func=lambda x: "Choose Partner Name" if x == "" else x
-            )
-
-        institution_data.append(
-            {
-                "District": district,
-                "Institution": institution,
-                "Address": address,
-                "Visit Date": visit_date,
-                "Visited Alone": visited_alone,
-                "Partner": partner
-            }
-        )
-
-        st.divider()
-
-    # -------------------------------------------------------
-    # PAYMENT DETAILS
-    # -------------------------------------------------------
-
-    st.subheader("Payment Details")
-
-    payment_method = st.radio(
-        "Preferred Payment Method *",
-        ["UPI", "Bank Transfer"],
-        horizontal=True
-    )
-
-    upi_id = ""
-    account_holder = ""
-    bank_name = ""
-    account_number = ""
-    confirm_account_number = ""
-    ifsc = ""
-
-    if payment_method == "UPI":
-
-        upi_id = st.text_input(
-            "UPI ID *",
-            placeholder="example@upi"
-        )
-
-    else:
-
-        account_holder = st.text_input(
-            "Account Holder Name *"
-        )
-
-        bank_name = st.text_input(
-            "Bank Name *"
-        )
-
-        account_number = st.text_input(
-            "Account Number *"
-        )
-
-        confirm_account_number = st.text_input(
-            "Confirm Account Number *"
-        )
-
-        ifsc = st.text_input(
-            "IFSC Code *"
         )
 
     st.divider()
-
-    # -------------------------------------------------------
-    # DECLARATION
-    # -------------------------------------------------------
-
-    declaration = st.checkbox(
-        "I confirm that the above information is correct."
-    )
-
-    submit = st.form_submit_button(
-        "Submit",
-        use_container_width=True
-    )
-
-# -------------------------------------------------------
-# VALIDATION
-# -------------------------------------------------------
-
-if submit:
 
     errors = []
 
-    if volunteer == "":
-        errors.append("Please select Volunteer Name.")
+    if st.button("Save & Continue", use_container_width=True):
 
-    if not mobile.isdigit() or len(mobile) != 10:
-        errors.append("Enter a valid 10-digit Mobile Number.")
+        if volunteer_name is None:
 
-    email_pattern = r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"
+            errors.append(
+                "Please select Volunteer Name."
+            )
 
-    if not re.match(email_pattern, email):
-        errors.append("Enter a valid Email Address.")
+        if not valid_mobile(mobile):
 
-    for idx, row in enumerate(institution_data):
+            errors.append(
+                "Please enter a valid 10-digit Mobile Number."
+            )
 
-        if row["District"] == "":
-            errors.append(f"Institution {idx+1}: Select District.")
+        if not valid_email(email):
 
-        if row["Institution"] == "":
-            errors.append(f"Institution {idx+1}: Select Institution.")
+            errors.append(
+                "Please enter a valid Email Address."
+            )
 
-        if not row["Visited Alone"] and row["Partner"] == "":
-            errors.append(f"Institution {idx+1}: Select Partner Name.")
+        if errors:
 
-    if payment_method == "UPI":
+            for error in errors:
 
-        if upi_id.strip() == "":
-            errors.append("Enter UPI ID.")
+                st.error(error)
 
-    else:
+            st.stop()
 
-        if account_holder.strip() == "":
-            errors.append("Enter Account Holder Name.")
+        st.session_state.volunteer = {
 
-        if bank_name.strip() == "":
-            errors.append("Enter Bank Name.")
+            "name": volunteer_name,
 
-        if account_number.strip() == "":
-            errors.append("Enter Account Number.")
+            "mobile": mobile,
 
-        if confirm_account_number.strip() == "":
-            errors.append("Confirm Account Number.")
+            "email": email,
 
-        if account_number != confirm_account_number:
-            errors.append("Account Numbers do not match.")
+            "institution_count": institution_count
 
-        if ifsc.strip() == "":
-            errors.append("Enter IFSC Code.")
+        }
 
-    if not declaration:
-        errors.append("Please accept the declaration.")
+        if len(st.session_state.institutions) != institution_count:
 
-    if errors:
+            st.session_state.institutions = []
 
-        st.error("Please correct the following:")
+            for _ in range(institution_count):
 
-        for error in errors:
-            st.write(f"• {error}")
+                st.session_state.institutions.append({
 
-    else:
+                    "district": "",
 
-        st.success("Validation Successful ✅")
+                    "institution": "",
 
-        st.write("Ready to save to Google Sheets.")
+                    "address": "",
 
-        # ---------------------------------------------
-        # SAVE TO RESPONSES SHEET
-        # ---------------------------------------------
+                    "visit_date": None,
 
-        import uuid
+                    "visited_alone": False,
 
-        submission_id = str(uuid.uuid4())[:8].upper()
+                    "partner": ""
 
-        for row in institution_data:
+                })
 
-            gs.save_response([
-                submission_id,
-                volunteer,
-                mobile,
-                email,
-                institution_count,
-                row["District"],
-                row["Institution"],
-                row["Address"],
-                row["Visit Date"].strftime("%d-%m-%Y"),
-                "Yes" if row["Visited Alone"] else "No",
-                row["Partner"],
-                payment_method,
-                date.today().strftime("%d-%m-%Y")
-            ])
+        st.session_state.page = 2
 
-        # ---------------------------------------------
-        # SAVE PAYMENT DETAILS
-        # ---------------------------------------------
+        st.rerun()
 
-        if payment_method == "UPI":
+# =====================================================
+# INSTITUTION DETAILS PLACEHOLDER
+# =====================================================
 
-            gs.save_payment([
-                submission_id,
-                volunteer,
-                mobile,
-                payment_method,
-                upi_id,
-                "",
-                "",
-                "",
-                "",
-                "",
-                "Pending"
-            ])
+def institution_page():
 
-        else:
+    render_header()
 
-            gs.save_payment([
-                submission_id,
-                volunteer,
-                mobile,
-                payment_method,
-                "",
-                account_holder,
-                bank_name,
-                account_number,
-                ifsc,
-                "",
-                "Pending"
-            ])
+    st.subheader("Institution Details")
 
-        st.success("Application Submitted Successfully.")
+    st.info(
+        "Institution Details page will be built in Version 2."
+    )
 
-        st.balloons()
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        if st.button("← Previous", use_container_width=True):
+
+            st.session_state.page = 1
+
+            st.rerun()
+
+    with col2:
+
+        st.button(
+            "Next →",
+            disabled=True,
+            use_container_width=True
+        )
+
+# =====================================================
+# MAIN APP
+# =====================================================
+
+if st.session_state.page == 1:
+
+    volunteer_page()
+
+elif st.session_state.page == 2:
+
+    institution_page()

@@ -1,5 +1,10 @@
+# COMPLETE REPLACEMENT FILE
+# services/google_sheets.py
+
+import time
 import pandas as pd
 import gspread
+
 from google.oauth2.service_account import Credentials
 
 
@@ -19,9 +24,25 @@ class GoogleSheets:
 
         client = gspread.authorize(credentials)
 
-        self.spreadsheet = client.open_by_key(
-            "15lbT4DgpkgRyC17y9mkwMLarafWYlij6NTM5YI0Es8s"
-        )
+        spreadsheet_id = "15lbT4DgpkgRyC17y9mkwMLarafWYlij6NTM5YI0Es8s"
+
+        # Retry 3 times
+        for attempt in range(3):
+
+            try:
+
+                self.spreadsheet = client.open_by_key(
+                    spreadsheet_id
+                )
+
+                break
+
+            except Exception:
+
+                if attempt == 2:
+                    raise
+
+                time.sleep(2)
 
         self.names_sheet = self.spreadsheet.worksheet("Names")
         self.institutions_sheet = self.spreadsheet.worksheet("Institutions")
@@ -40,19 +61,36 @@ class GoogleSheets:
             self.institutions_df.columns.str.strip()
         )
 
-    # ----------------------------
-    # Volunteers
-    # ----------------------------
+        self.institutions_df["District"] = (
+            self.institutions_df["District"]
+            .astype(str)
+            .str.strip()
+        )
+
+        self.institutions_df["Institution Name"] = (
+            self.institutions_df["Institution Name"]
+            .astype(str)
+            .str.strip()
+        )
+
+        self.institutions_df["Address"] = (
+            self.institutions_df["Address"]
+            .astype(str)
+            .str.strip()
+        )
+
+    # ------------------------------------------------
 
     def get_names(self):
 
         return sorted(
-            self.names_df["Name"].dropna().unique().tolist()
+            self.names_df["Name"]
+            .dropna()
+            .unique()
+            .tolist()
         )
 
-    # ----------------------------
-    # Districts
-    # ----------------------------
+    # ------------------------------------------------
 
     def get_districts(self):
 
@@ -63,28 +101,28 @@ class GoogleSheets:
             .tolist()
         )
 
-    # ----------------------------
-    # Institutions
-    # ----------------------------
+    # ------------------------------------------------
 
-    def get_institutions(self, district):
+    def get_institutions_by_district(self, district):
 
         df = self.institutions_df[
             self.institutions_df["District"] == district
         ]
 
         return sorted(
-            df["Institution Name"].tolist()
+            df["Institution Name"]
+            .dropna()
+            .unique()
+            .tolist()
         )
 
-    # ----------------------------
-    # Address
-    # ----------------------------
+    # ------------------------------------------------
 
-    def get_address(self, institution):
+    def get_address(self, district, institution):
 
         row = self.institutions_df[
-            self.institutions_df["Institution Name"] == institution
+            (self.institutions_df["District"] == district) &
+            (self.institutions_df["Institution Name"] == institution)
         ]
 
         if row.empty:
@@ -92,17 +130,13 @@ class GoogleSheets:
 
         return row.iloc[0]["Address"]
 
-    # ----------------------------
-    # Save Response
-    # ----------------------------
+    # ------------------------------------------------
 
     def save_response(self, row):
 
         self.responses_sheet.append_row(row)
 
-    # ----------------------------
-    # Save Payment
-    # ----------------------------
+    # ------------------------------------------------
 
     def save_payment(self, row):
 
