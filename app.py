@@ -1,5 +1,6 @@
 import re
 import streamlit as st
+from pathlib import Path
 
 from services.cache import get_google_sheets
 
@@ -131,12 +132,47 @@ def valid_email(email):
 
 def page_header(title):
 
-    st.title("TMREIS Institution Visit Payment Portal")
+    col1, col2 = st.columns([4, 2])
+
+    with col1:
+
+        st.markdown(
+            """
+            <div style="
+                padding-top: 10px;
+                padding-bottom: 5px;
+            ">
+                <h1 style="
+                    font-size: 42px;
+                    line-height: 1.15;
+                    margin: 0;
+                    color: #12345B;
+                    font-weight: 700;
+                ">
+                    TMREIS Institution Visit<br>
+                    Payment Portal
+                </h1>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with col2:
+
+        logo_path = Path("assets/FTF_Logo.png")
+
+        if logo_path.exists():
+
+            st.image(
+                str(logo_path),
+                width=250
+            )
 
     st.subheader(title)
 
     st.divider()
 
+    
 # ======================================================
 # VOLUNTEER DETAILS
 # ======================================================
@@ -1128,7 +1164,7 @@ def review_page():
 
                 st.error(
                     f"Error: {str(e)}"
-                )
+                )   
 
 # ======================================================
 # MAIN
