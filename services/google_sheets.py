@@ -1,6 +1,7 @@
 import time
 import pandas as pd
 import gspread
+import streamlit as st
 
 from google.oauth2.service_account import Credentials
 
@@ -14,14 +15,31 @@ class GoogleSheets:
             "https://www.googleapis.com/auth/drive"
         ]
 
-        credentials = Credentials.from_service_account_file(
-            "secrets/service_account.json",
-            scopes=SCOPES
+        # ------------------------------------------
+        # Google Credentials
+        # ------------------------------------------
+
+        try:
+
+            credentials = Credentials.from_service_account_info(
+                st.secrets["gcp_service_account"],
+                scopes=SCOPES
+            )
+
+        except Exception:
+
+            credentials = Credentials.from_service_account_file(
+                "secrets/service_account.json",
+                scopes=SCOPES
+            )
+
+        self.client = gspread.authorize(
+            credentials
         )
 
-        self.client = gspread.authorize(credentials)
-
-        spreadsheet_id = "15lbT4DgpkgRyC17y9mkwMLarafWYlij6NTM5YI0Es8s"
+        spreadsheet_id = (
+            "15lbT4DgpkgRyC17y9mkwMLarafWYlij6NTM5YI0Es8s"
+        )
 
         # ------------------------------------------
         # Open Spreadsheet
@@ -50,7 +68,9 @@ class GoogleSheets:
         # Worksheets
         # ------------------------------------------
 
-        self.names_sheet = self._get_worksheet("Names")
+        self.names_sheet = self._get_worksheet(
+            "Names"
+        )
 
         self.institutions_sheet = self._get_worksheet(
             "Institutions"
@@ -65,7 +85,7 @@ class GoogleSheets:
         )
 
         # ------------------------------------------
-        # Names Data
+        # Names
         # ------------------------------------------
 
         self.names_df = pd.DataFrame(
@@ -73,7 +93,7 @@ class GoogleSheets:
         )
 
         # ------------------------------------------
-        # Institutions Data
+        # Institutions
         # ------------------------------------------
 
         self.institutions_df = pd.DataFrame(
@@ -107,7 +127,10 @@ class GoogleSheets:
     # WORKSHEET
     # ==================================================
 
-    def _get_worksheet(self, worksheet_name):
+    def _get_worksheet(
+        self,
+        worksheet_name
+    ):
 
         for attempt in range(5):
 
@@ -181,7 +204,10 @@ class GoogleSheets:
     ):
 
         row = self.institutions_df[
-            (self.institutions_df["District"] == district)
+            (
+                self.institutions_df["District"]
+                == district
+            )
             &
             (
                 self.institutions_df["Institution Name"]
@@ -199,7 +225,10 @@ class GoogleSheets:
     # SAVE MULTIPLE RESPONSES
     # ==================================================
 
-    def save_responses(self, rows):
+    def save_responses(
+        self,
+        rows
+    ):
 
         if not rows:
             return
@@ -226,7 +255,10 @@ class GoogleSheets:
     # SAVE PAYMENT
     # ==================================================
 
-    def save_payment(self, row):
+    def save_payment(
+        self,
+        row
+    ):
 
         for attempt in range(3):
 
