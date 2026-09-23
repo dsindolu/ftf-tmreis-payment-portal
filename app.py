@@ -250,8 +250,7 @@ def volunteer_page():
                 "institution": "",
                 "address": "",
                 "visit_date": None,
-                "visited_alone": False,
-                "partner": ""
+                "visit_mode": ""
 
             })
 
@@ -358,51 +357,22 @@ def institution_page():
     )
 
     # ------------------------------------------
-    # Visited Alone
+    # Visit Mode
     # ------------------------------------------
 
-    visited_alone = st.checkbox(
-        "I Visited Alone",
-        value=current["visited_alone"],
-        key=f"visited_alone_{index}"
+    visit_modes = ["Online", "Offline"]
+
+    visit_mode = st.selectbox(
+        "Visit Mode *",
+        options=visit_modes,
+        index=(
+            visit_modes.index(current["visit_mode"])
+            if current["visit_mode"] in visit_modes
+            else None
+        ),
+        placeholder="",
+        key=f"visit_mode_{index}"
     )
-
-    # ------------------------------------------
-    # Partner Name
-    # ------------------------------------------
-
-    volunteers = [
-        name
-        for name in gs.get_names()
-        if name != st.session_state.volunteer["name"]
-    ]
-
-    if visited_alone:
-
-        partner = ""
-
-        st.selectbox(
-            "Partner Name",
-            options=[],
-            index=None,
-            disabled=True,
-            placeholder="",
-            key=f"partner_disabled_{index}"
-        )
-
-    else:
-
-        partner = st.selectbox(
-            "Partner Name *",
-            options=volunteers,
-            index=(
-                volunteers.index(current["partner"])
-                if current["partner"] in volunteers
-                else None
-            ),
-            placeholder="",
-            key=f"partner_{index}"
-        )
 
     st.divider()
 
@@ -471,10 +441,10 @@ def institution_page():
                     "Please select Visit Date."
                 )
 
-            if not visited_alone and not partner:
+            if not visit_mode:
 
                 errors.append(
-                    "Please select Partner Name."
+                    "Please select Visit Mode."
                 )
 
             # ----------------------------------
@@ -526,9 +496,7 @@ def institution_page():
 
                 "visit_date": visit_date,
 
-                "visited_alone": visited_alone,
-
-                "partner": partner
+                "visit_mode": visit_mode
 
             }
 
@@ -947,18 +915,10 @@ def review_page():
             f"{institution['visit_date']}"
         )
 
-        if institution["visited_alone"]:
-
-            st.write(
-                "**Visited Alone:** Yes"
-            )
-
-        else:
-
-            st.write(
-                f"**Partner Name:** "
-                f"{institution['partner']}"
-            )
+        st.write(
+            f"**Visit Mode:** "
+            f"{institution['visit_mode']}"
+        )
 
         if i < len(institutions) - 1:
 
@@ -1078,15 +1038,7 @@ def review_page():
                             institution["visit_date"]
                         ),
 
-                        (
-                            "Yes"
-                            if institution[
-                                "visited_alone"
-                            ]
-                            else "No"
-                        ),
-
-                        institution["partner"]
+                        institution["visit_mode"]
 
                     ])
 
