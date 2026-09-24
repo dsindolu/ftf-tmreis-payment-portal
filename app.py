@@ -839,12 +839,12 @@ def review_page():
     ):
 
         st.success(
-            "Submitted Successfully!"
+            "Your details saved successfully!"
         )
 
         st.markdown(
-            "Your institution visit and payment "
-            "details have been submitted successfully."
+            "Our team will verify and process your "
+            "payment. Thanks for your support!"
         )
 
         return
@@ -1037,6 +1037,13 @@ def review_page():
                         str(
                             institution["visit_date"]
                         ),
+
+                        # Visited Alone / Partner Name columns kept
+                        # blank to preserve position; Visit Mode is
+                        # the new column after Partner Name in the sheet
+                        "",
+
+                        "",
 
                         institution["visit_mode"]
 
